@@ -1,138 +1,116 @@
 const { banco } = require('../bancodedados.js');
+const { verificaDadosPessoais, verificaCpfEmail, validaConta } = require('../validacoes.js');
 let { contas, numeroConta } = require('../bancodedados.js');
 
-const listarContas = (req, res) => {
+const listarContas = async (req, res) => {
     const { senha_banco } = req.query;
 
-    if (senha_banco) {
+    if (!senha_banco) {
+        return res.status(400).json({
+            "mensagem": "A senha do banco precisa ser informada."
+        });
+    }
 
-        if (senha_banco === banco.senha) {
-            return res.status(200).json(contas)
-        }
-
-        return res.status(403).json({
+    if (senha_banco !== banco.senha) {
+        return res.status(401).json({
             "mensagem": "A senha do banco informada é inválida!"
-        })
+        });
     }
 
-    return res.status(400).json({
-        "mensagem": "A senha do banco precisa ser informada."
-    })
-}
+    return res.status(200).json(contas);
 
-const criarConta = (req, res) => {
-    const { nome, cpf, data_nascimento, telefone, email, senha } = req.body;
-
-    const cpfUnico = contas.find((conta) => {
-        return conta.usuario.cpf === cpf
-    })
-
-    const emailUnico = contas.find((conta) => {
-        return conta.usuario.email === email
-    })
-
-    if (cpfUnico || emailUnico) {
-        return res.status(400).json({
-            "mensagem": "Já existe uma conta com o cpf ou e-mail informado!"
-        })
-    }
-
-    const conta = numeroConta.toString();
-
-    const novaConta = {
-        numero: conta,
-        saldo: 0,
-        usuario: {
-            nome,
-            cpf,
-            data_nascimento,
-            telefone,
-            email,
-            senha
-        }
-    }
-
-    contas.push(novaConta);
-    numeroConta++
-
-    return res.status(201).json({
-        "mensagem": "Nova conta criada com sucesso!"
-    })
-}
-
-const atualizarUsuario = (req, res) => {
-    const { nome, cpf, data_nascimento, telefone, email, senha } = req.body;
-    const { numeroConta } = req.params;
-
-    const conta = contas.find((usuario) => {
-        return usuario.numero === numeroConta
-    });
-
-    if (!conta) {
-        return res.status(400).json({
-            "mensagem": "Usuario não encontrado."
-        })
-    }
-
-    const cpfJaExiste = contas.find((conta) => {
-        return conta.usuario.cpf === cpf
-    })
-
-    const emailJaExiste = contas.find((conta) => {
-        return conta.usuario.email === email
-    })
-
-    if (cpfJaExiste) {
-        return res.status(400).json({
-            "mensagem": "O CPF informado já existe cadastrado."
-        })
-    }
-
-    if (emailJaExiste) {
-        return res.status(400).json({
-            "mensagem": "O email informado já existe cadastrado."
-        })
-    }
-
-    conta.usuario.nome = nome;
-    conta.usuario.cpf = cpf;
-    conta.usuario.data_nascimento = data_nascimento;
-    conta.usuario.telefone = telefone;
-    conta.usuario.email = email;
-    conta.usuario.senha = senha;
-
-    return res.status(203).send();
 };
 
-const deletarUsuario = (req, res) => {
+const criarConta = async (req, res) => {
+    const { nome, cpf, data_nascimento, telefone, email, senha } = req.body;
+
+    try {
+
+        await verificaDadosPessoais(nome, cpf, data_nascimento, telefone, email, senha);
+
+        await verificaCpfEmail(contas, cpf, email);
+
+        const conta = numeroConta.toString();
+
+        const novaConta = {
+            numero: conta,
+            saldo: 0,
+            usuario: {
+                nome,
+                cpf,
+                data_nascimento,
+                telefone,
+                email,
+                senha
+            }
+        };
+
+        contas.push(novaConta);
+        numeroConta++;
+
+        return res.status(201).send();
+
+    } catch (error) {
+        return res.status(error.statusCode).json({
+            "mensagem": error.message
+        });
+    }
+};
+
+const atualizarUsuario = async (req, res) => {
+    const { nome, cpf, data_nascimento, telefone, email, senha } = req.body;
     const { numeroConta } = req.params;
 
-    const conta = contas.find((usuario) => {
-        return usuario.numero === numeroConta
-    });
+    try {
+        await verificaDadosPessoais(nome, cpf, data_nascimento, telefone, email, senha);
 
-    if (!conta) {
-        return res.status(404).json({
-            "mensagem": "Usuario não encontrado."
-        })
+        const conta = await validaConta(contas, numeroConta);
+
+        await verificaCpfEmail(contas, cpf, email);
+
+        conta.usuario.nome = nome;
+        conta.usuario.cpf = cpf;
+        conta.usuario.data_nascimento = data_nascimento;
+        conta.usuario.telefone = telefone;
+        conta.usuario.email = email;
+        conta.usuario.senha = senha;
+
+        return res.status(204).send();
+
+    } catch (error) {
+        return res.status(error.statusCode).json({
+            "mensagem": error.message
+        });
     }
+};
 
-    if (conta.saldo !== 0) {
-        return res.status(400).json({
-            "mensagem": "A conta só pode ser removida se o saldo for zero!"
-        })
+const deletarUsuario = async (req, res) => {
+    const { numeroConta } = req.params;
+
+    try {
+
+        const conta = await validaConta(contas, numeroConta);
+
+        if (conta.saldo !== 0) {
+            throw { statusCode: 400, message: "A conta só pode ser removida se o saldo for zero!" };
+        }
+
+        contas = contas.filter((conta) => {
+            return conta.numero !== numeroConta;
+        });
+
+        return res.status(204).send();
+
+    } catch (error) {
+        return res.status(error.statusCode).json({
+            "mensagem": error.message
+        });
     }
-
-    contas = contas.filter((conta) => {
-        return conta.numero !== numeroConta
-    })
-
-    return res.status(204).send();
-}
+};
 
 module.exports = {
     listarContas,
     criarConta,
     atualizarUsuario,
     deletarUsuario
-}
+};
