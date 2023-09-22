@@ -40,7 +40,7 @@ const sacar = async (req, res) => {
         await validaValores(valor);
 
         if (valor > conta.saldo) {
-            throw { statusCode: 400, message: "Saldo insuficiente!" };
+            throw { statusCode: 403, message: "Saldo insuficiente!" };
         }
 
         conta.saldo -= valor;
@@ -96,7 +96,7 @@ const transferir = async (req, res) => {
         await validaValores(valor);
 
         if (valor > contaOrigem.saldo) {
-            throw { statusCode: 400, message: "Saldo insuficiente." };
+            throw { statusCode: 403, message: "Saldo insuficiente." };
         }
 
         contaOrigem.saldo -= valor;

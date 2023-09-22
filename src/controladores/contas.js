@@ -64,21 +64,18 @@ const atualizarUsuario = async (req, res) => {
     try {
         await verificaDadosPessoais(nome, cpf, data_nascimento, telefone, email, senha);
 
-        const conta = await validaConta(contas, numeroConta);
+        let conta = await validaConta(contas, numeroConta);
+        const params = { nome, cpf, data_nascimento, telefone, email, senha };
 
         await verificaCpfEmail(contas, cpf, email);
 
-        conta.usuario.nome = nome;
-        conta.usuario.cpf = cpf;
-        conta.usuario.data_nascimento = data_nascimento;
-        conta.usuario.telefone = telefone;
-        conta.usuario.email = email;
-        conta.usuario.senha = senha;
+        const usuarioEditado = { ...conta.usuario, ...params };
+        conta.usuario = usuarioEditado;
 
         return res.status(204).send();
 
     } catch (error) {
-        return res.status(error.statusCode).json({
+        return res.status(error.statusCode || 500).json({
             "mensagem": error.message
         });
     }
@@ -92,7 +89,7 @@ const deletarUsuario = async (req, res) => {
         const conta = await validaConta(contas, numeroConta);
 
         if (conta.saldo !== 0) {
-            throw { statusCode: 400, message: "A conta só pode ser removida se o saldo for zero!" };
+            throw { statusCode: 403, message: "A conta só pode ser removida se o saldo for zero!" };
         }
 
         contas = contas.filter((conta) => {

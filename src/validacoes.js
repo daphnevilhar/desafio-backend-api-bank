@@ -77,7 +77,7 @@ const validaValores = async (valor) => {
     }
 
     if (valor <= 0) {
-        throw { statusCode: 400, message: "Não são permitidos depósitos com valores zerados ou negativos." };
+        throw { statusCode: 403, message: "Não são permitidos depósitos com valores zerados ou negativos." };
     }
 }
 
